@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据文件管理 - 降雨预测系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            background-color: #f8f9fa;
+        }
+        .sidebar-sticky {
+            position: sticky;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: .5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .nav-link {
+            color: #333;
+            padding: .5rem 1rem;
+        }
+        .nav-link.active {
+            color: #007bff;
+            font-weight: bold;
+        }
+        .main-content {
+            margin-left: 240px;
+            padding: 20px;
+            padding-top: 70px; /* 增加顶部内边距，确保内容不被导航栏遮挡 */
+        }
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+        }
+        .file-card {
+            transition: all 0.3s ease;
+            border-radius: 8px;
+        }
+        .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .file-icon {
+            font-size: 2.5rem;
+            color: #0d6efd;
+        }
+        .file-size {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+        .file-date {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+        .upload-zone {
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+        }
+        .upload-zone:hover {
+            border-color: #0d6efd;
+            background-color: #f0f7ff;
+        }
+        .upload-icon {
+            font-size: 3rem;
+            color: #0d6efd;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark fixed-top p-0 shadow">
+        <div class="container-fluid">
+            <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#">降雨预测系统 - 管理后台</a>
+            <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-nav">
+                <div class="nav-item text-nowrap">
+                    <a class="nav-link px-3" href="/logout">退出登录</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="sidebar-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/dashboard_view">
+                                <i class="bi bi-speedometer2 me-2"></i> 仪表盘
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/users_view">
+                                <i class="bi bi-people me-2"></i> 用户管理
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/system_logs_view">
+                                <i class="bi bi-journal-text me-2"></i> 系统日志
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/admin/data_files_view">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i> 数据文件
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">数据文件管理</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="refreshBtn">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新列表
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="upload-zone" id="uploadZone">
+                            <i class="bi bi-cloud-arrow-up upload-icon"></i>
+                            <h4>上传新数据文件</h4>
+                            <p class="text-muted">点击或拖拽文件到此处上传</p>
+                            <input type="file" id="fileUpload" class="d-none" accept=".csv">
+                            <button class="btn btn-primary" id="uploadBtn">选择文件</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">数据文件列表</h5>
+                        <span class="text-muted" id="lastUpdated">加载中...</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="filesContainer">
+                            <p class="text-center py-3">正在加载数据文件...</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 文件删除确认模态框 -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">确认删除</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要删除文件 <span id="deleteFileName" class="fw-bold"></span> 吗？此操作无法撤销。</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmDelete">删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载数据文件列表
+            loadDataFiles();
+            
+            // 添加刷新按钮事件
+            document.getElementById('refreshBtn').addEventListener('click', loadDataFiles);
+            
+            // 文件上传按钮事件
+            document.getElementById('uploadBtn').addEventListener('click', function() {
+                document.getElementById('fileUpload').click();
+            });
+            
+            // 文件选择事件
+            document.getElementById('fileUpload').addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    uploadFile(e.target.files[0]);
+                }
+            });
+            
+            // 拖放上传区域事件
+            const uploadZone = document.getElementById('uploadZone');
+            
+            uploadZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadZone.classList.add('border-primary');
+            });
+            
+            uploadZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadZone.classList.remove('border-primary');
+            });
+            
+            uploadZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadZone.classList.remove('border-primary');
+                
+                if (e.dataTransfer.files.length > 0) {
+                    uploadFile(e.dataTransfer.files[0]);
+                }
+            });
+            
+            // 删除确认事件
+            document.getElementById('confirmDelete').addEventListener('click', function() {
+                const fileName = document.getElementById('deleteFileName').textContent;
+                deleteFile(fileName);
+            });
+        });
+
+        function loadDataFiles() {
+            fetch('/admin/data_files')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('网络请求失败');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const filesContainer = document.getElementById('filesContainer');
+                    filesContainer.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                            const fileCard = document.createElement('div');
+                            fileCard.className = 'col-md-4 mb-3';
+                            
+                            // 文件大小格式化
+                            const fileSize = formatFileSize(file.size);
+                            
+                            // 文件日期格式化
+                            const fileDate = new Date(file.modified).toLocaleString();
+                            
+                            fileCard.innerHTML = `
+                                <div class="card file-card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-file-earmark-text file-icon me-3"></i>
+                                            <div>
+                                                <h5 class="card-title">${file.name}</h5>
+                                                <p class="card-text file-size">${fileSize}</p>
+                                                <p class="card-text file-date">${fileDate}</p>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-end mt-3">
+                                            <button class="btn btn-sm btn-outline-primary me-2" onclick="downloadFile('${file.name}')">
+                                                <i class="bi bi-download"></i> 下载
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="showDeleteConfirm('${file.name}')">
+                                                <i class="bi bi-trash"></i> 删除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            filesContainer.appendChild(fileCard);
+                        });
+                    } else {
+                        filesContainer.innerHTML = '<p class="text-center py-3 col-12">暂无数据文件</p>';
+                    }
+                    
+                    // 更新最后更新时间
+                    document.getElementById('lastUpdated').textContent = '最后更新: ' + new Date().toLocaleString();
+                })
+                .catch(error => {
+                    console.error('获取数据文件列表失败:', error);
+                    document.getElementById('filesContainer').innerHTML = '<p class="text-center py-3 text-danger col-12">数据加载失败，请刷新页面</p>';
+                    document.getElementById('lastUpdated').textContent = '数据加载失败';
+                });
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function uploadFile(file) {
+            if (!file) return;
+            
+            // 检查文件类型
+            if (file.name.split('.').pop().toLowerCase() !== 'csv') {
+                alert('只能上传CSV文件');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/admin/upload_file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('文件上传成功');
+                    loadDataFiles();
+                } else {
+                    alert('文件上传失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('文件上传失败:', error);
+                alert('文件上传失败，请重试');
+            });
+        }
+        
+        function downloadFile(fileName) {
+            window.location.href = `/admin/download_file?filename=${encodeURIComponent(fileName)}`;
+        }
+        
+        function showDeleteConfirm(fileName) {
+            document.getElementById('deleteFileName').textContent = fileName;
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            deleteModal.show();
+        }
+        
+        function deleteFile(fileName) {
+            fetch(`/admin/delete_file?filename=${encodeURIComponent(fileName)}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                    alert('文件删除成功');
+                    loadDataFiles();
+                } else {
+                    alert('文件删除失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('文件删除失败:', error);
+                alert('文件删除失败，请重试');
+            });
+        }
+    </script>
+</body>
+</html>

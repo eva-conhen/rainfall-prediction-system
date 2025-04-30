@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 降雨预测系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            background-color: #f8f9fa;
+        }
+        .sidebar-sticky {
+            position: sticky;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: .5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .nav-link {
+            color: #333;
+            padding: .5rem 1rem;
+        }
+        .nav-link.active {
+            color: #007bff;
+            font-weight: bold;
+        }
+        .main-content {
+            margin-left: 240px;
+            padding: 20px;
+            padding-top: 70px; /* 增加顶部内边距，确保内容不被导航栏遮挡 */
+        }
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark fixed-top p-0 shadow">
+        <div class="container-fluid">
+            <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#">降雨预测系统 - 管理后台</a>
+            <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-nav">
+                <div class="nav-item text-nowrap">
+                    <a class="nav-link px-3" href="/logout">退出登录</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="sidebar-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/dashboard_view">
+                                <i class="bi bi-speedometer2 me-2"></i> 仪表盘
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/admin/users_view">
+                                <i class="bi bi-people me-2"></i> 用户管理
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/system_logs_view">
+                                <i class="bi bi-journal-text me-2"></i> 系统日志
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/data_files_view">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i> 数据文件
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">用户管理</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="refreshBtn">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新数据
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>预测次数</th>
+                                <th>最后活动时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载用户数据
+            loadUsers();
+            
+            // 添加刷新按钮事件
+            document.getElementById('refreshBtn').addEventListener('click', loadUsers);
+        });
+
+        function loadUsers() {
+            fetch('/admin/users_data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('网络请求失败');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const tableBody = document.getElementById('userTableBody');
+                    tableBody.innerHTML = '';
+                    
+                    if (data.users && data.users.length > 0) {
+                        data.users.forEach(user => {
+                            const row = document.createElement('tr');
+                            
+                            // 格式化最后活动时间
+                            let lastActive = '从未活动';
+                            if (user.last_active) {
+                                const date = new Date(user.last_active);
+                                lastActive = date.toLocaleString();
+                            }
+                            
+                            // 创建表格行内容
+                            row.innerHTML = `
+                                <td>${user.id}</td>
+                                <td>${user.username}</td>
+                                <td>${user.predictions_count}</td>
+                                <td>${lastActive}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info">详情</button>
+                                    <button class="btn btn-sm btn-outline-warning">重置密码</button>
+                                </td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    } else {
+                        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">暂无用户数据</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取用户数据失败:', error);
+                    document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">数据加载失败，请刷新页面</td></tr>';
+                });
+        }
+    </script>
+</body>
+</html>

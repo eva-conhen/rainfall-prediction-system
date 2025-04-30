@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>降雨预测系统 - 仪表盘</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            background-color: #f8f9fa;
+        }
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: .5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .nav-link {
+            font-weight: 500;
+            color: #333;
+        }
+        .nav-link.active {
+            color: #0d6efd;
+        }
+        .main-content {
+            margin-left: 240px;
+            padding: 20px;
+            padding-top: 70px; /* 增加顶部内边距，确保内容不被导航栏遮挡 */
+        }
+        @media (max-width: 767.98px) {
+            .sidebar {
+                position: static;
+                padding-top: 0;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+        .welcome-banner {
+            background-color: #0d6efd;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 10px rgba(13, 110, 253, 0.2);
+        }
+        .stats-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        .prediction-history {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .stat-icon {
+            font-size: 2.5rem;
+            opacity: 0.8;
+            margin-bottom: 15px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 1rem;
+            color: #6c757d;
+        }
+        .progress-circle {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 15px;
+        }
+        .progress-circle canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .progress-circle-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .prediction-type-single {
+            color: #0d6efd;
+        }
+        .prediction-type-batch {
+            color: #198754;
+        }
+        .trend-chart-container {
+            height: 200px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">降雨预测系统</a>
+            <div class="d-flex">
+                <span class="navbar-text me-3">欢迎，{{ username }}</span>
+                <a href="/logout" class="btn btn-outline-light btn-sm">退出登录</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/dashboard">
+                                <span data-feather="home"></span>
+                                仪表盘
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/single_predict">
+                                <span data-feather="file"></span>
+                                单次预测
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/batch_predict">
+                                <span data-feather="file-text"></span>
+                                批量预测
+                            </a>
+                        </li>
+
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <div class="welcome-banner">
+                    <h2>欢迎使用降雨预测系统</h2>
+                    <p>您可以进行单次预测或批量预测，系统会记录您的预测历史。</p>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="stats-card">
+                            <h4 class="mb-4"><i class="bi bi-bar-chart-fill me-2"></i>预测统计</h4>
+                            <div class="row">
+                                <div class="col-md-4 text-center">
+                                    <div class="progress-circle" id="total-progress">
+                                        <canvas width="120" height="120"></canvas>
+                                        <div class="progress-circle-text" id="total-predictions-circle">{{ predictions|length }}</div>
+                                    </div>
+                                    <div class="stat-label">总预测次数</div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="progress-circle" id="single-progress">
+                                        <canvas width="120" height="120"></canvas>
+                                        <div class="progress-circle-text prediction-type-single" id="single-predictions-circle">{{ predictions|selectattr('0', 'equalto', 'single')|list|length }}</div>
+                                    </div>
+                                    <div class="stat-label">单次预测</div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="progress-circle" id="batch-progress">
+                                        <canvas width="120" height="120"></canvas>
+                                        <div class="progress-circle-text prediction-type-batch" id="batch-predictions-circle">{{ predictions|selectattr('0', 'equalto', 'batch')|list|length }}</div>
+                                    </div>
+                                    <div class="stat-label">批量预测</div>
+                                </div>
+                            </div>
+                            <div class="trend-chart-container mt-4">
+                                <canvas id="prediction-trend-chart"></canvas>
+                            </div>
+                            <div class="d-none">
+                                <span id="total-predictions">{{ predictions|length }}</span>
+                                <span id="single-predictions">{{ predictions|selectattr('0', 'equalto', 'single')|list|length }}</span>
+                                <span id="batch-predictions">{{ predictions|selectattr('0', 'equalto', 'batch')|list|length }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <h4 class="mb-4"><i class="bi bi-lightning-fill me-2"></i>快速操作</h4>
+                            <div class="text-center mb-4">
+                                <i class="bi bi-cloud-drizzle stat-icon text-primary"></i>
+                                <p class="mb-3">选择您需要的预测方式</p>
+                            </div>
+                            <div class="d-grid gap-3">
+                                <a href="/single_predict" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-file-earmark me-2"></i>进行单次预测
+                                </a>
+                                <a href="/batch_predict" class="btn btn-success btn-lg">
+                                    <i class="bi bi-files me-2"></i>进行批量预测
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="prediction-history">
+                    <h4 class="mb-4"><i class="bi bi-clock-history me-2"></i>预测历史</h4>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="bi bi-tag me-1"></i>预测类型</th>
+                                    <th><i class="bi bi-clipboard-data me-1"></i>预测结果</th>
+                                    <th><i class="bi bi-calendar-event me-1"></i>预测时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prediction in predictions %}
+                                <tr>
+                                    <td>
+                                        {% if prediction[0] == "single" %}
+                                        <span class="badge bg-primary"><i class="bi bi-file-earmark me-1"></i>单次预测</span>
+                                        {% else %}
+                                        <span class="badge bg-success"><i class="bi bi-files me-1"></i>批量预测</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ prediction[1] }}</td>
+                                    <td><i class="bi bi-clock me-1 text-muted"></i>{{ prediction[2] }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% if not predictions %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-muted">
+                                        <i class="bi bi-inbox-fill me-2" style="font-size: 1.5rem;"></i>
+                                        <p>暂无预测记录</p>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script>
+        // 初始化Feather图标
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+            
+            // 获取预测数据
+            const totalPredictions = parseInt(document.getElementById('total-predictions').textContent) || 0;
+            const singlePredictions = parseInt(document.getElementById('single-predictions').textContent) || 0;
+            const batchPredictions = parseInt(document.getElementById('batch-predictions').textContent) || 0;
+            
+            // 绘制圆形进度条
+            drawProgressCircle('total-progress', totalPredictions, totalPredictions, '#6610f2');
+            drawProgressCircle('single-progress', singlePredictions, totalPredictions, '#0d6efd');
+            drawProgressCircle('batch-progress', batchPredictions, totalPredictions, '#198754');
+            
+            // 绘制趋势图表
+            drawTrendChart();
+        });
+        
+        // 绘制圆形进度条函数
+        function drawProgressCircle(elementId, value, total, color) {
+            const canvas = document.querySelector(`#${elementId} canvas`);
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = 45;
+            const percentage = total > 0 ? value / total : 0;
+            
+            // 清除画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制背景圆
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.stroke();
+            
+            // 使用动画绘制进度圆
+            animateProgressCircle(ctx, centerX, centerY, radius, percentage, color);
+            
+            // 添加鼠标悬停效果
+            canvas.addEventListener('mouseover', function() {
+                // 放大效果
+                canvas.style.transform = 'scale(1.05)';
+                canvas.style.transition = 'transform 0.3s ease';
+                
+                // 更新文本显示
+                const textElement = document.querySelector(`#${elementId} .progress-circle-text`);
+                if (textElement) {
+                    textElement.style.fontSize = '1.7rem';
+                    textElement.style.transition = 'font-size 0.3s ease';
+                }
+            });
+            
+            canvas.addEventListener('mouseout', function() {
+                // 恢复原始大小
+                canvas.style.transform = 'scale(1)';
+                
+                // 恢复文本显示
+                const textElement = document.querySelector(`#${elementId} .progress-circle-text`);
+                if (textElement) {
+                    textElement.style.fontSize = '1.5rem';
+                }
+            });
+        }
+        
+        // 动画绘制进度圆
+        function animateProgressCircle(ctx, centerX, centerY, radius, targetPercentage, color) {
+            let currentPercentage = 0;
+            const animationDuration = 1000; // 1秒
+            const startTime = performance.now();
+            
+            function animate(currentTime) {
+                const elapsedTime = currentTime - startTime;
+                const progress = Math.min(elapsedTime / animationDuration, 1);
+                
+                // 使用缓动函数使动画更自然
+                currentPercentage = easeOutQuart(progress) * targetPercentage;
+                
+                // 绘制当前进度
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, -Math.PI / 2, (-Math.PI / 2) + (2 * Math.PI * currentPercentage));
+                ctx.lineWidth = 10;
+                ctx.strokeStyle = color;
+                ctx.stroke();
+                
+                // 继续动画直到完成
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            }
+            
+            // 启动动画
+            requestAnimationFrame(animate);
+        }
+        
+        // 缓动函数 - 快速开始，缓慢结束
+        function easeOutQuart(x) {
+            return 1 - Math.pow(1 - x, 4);
+        }
+        
+        // 绘制趋势图表函数
+        function drawTrendChart() {
+            const ctx = document.getElementById('prediction-trend-chart').getContext('2d');
+            
+            // 从预测历史数据中提取日期信息并按月份分组
+            const predictionElements = document.querySelectorAll('.prediction-history tbody tr');
+            const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+            
+            // 初始化月度数据统计
+            const monthlyData = {};
+            monthNames.forEach((month, index) => {
+                monthlyData[index] = { single: 0, batch: 0 };
+            });
+            
+            // 处理预测历史数据
+            predictionElements.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 3) {
+                    const type = cells[0].textContent.includes('单次预测') ? 'single' : 'batch';
+                    const dateText = cells[2].textContent.trim();
+                    
+                    // 尝试从日期文本中提取日期
+                    try {
+                        // 尝试多种可能的日期格式
+                        let month = -1;
+                        
+                        // 首先尝试标准格式 YYYY-MM-DD 或 YYYY/MM/DD
+                        const dateRegex = /(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/;
+                        const match = dateText.match(dateRegex);
+                        
+                        if (match && match.length >= 3) {
+                            // 提取月份（注意JavaScript中月份从0开始）
+                            month = parseInt(match[2]) - 1;
+                        } else {
+                            // 尝试其他格式，如分割字符串
+                            const dateParts = dateText.split(/[\s\-\/:.]/g).filter(part => part.trim() !== '');
+                            if (dateParts.length >= 2) {
+                                // 假设第二部分是月份
+                                const potentialMonth = parseInt(dateParts[1]);
+                                if (!isNaN(potentialMonth) && potentialMonth >= 1 && potentialMonth <= 12) {
+                                    month = potentialMonth - 1;
+                                }
+                            }
+                        }
+                        
+                        // 如果找到有效月份，更新统计数据
+                        if (month >= 0 && month < 12) {
+                            monthlyData[month][type]++;
+                        }
+                    } catch (e) {
+                        console.error('日期解析错误:', e);
+                    }
+                }
+            });
+            
+            // 准备图表数据
+            const labels = [];
+            const singleData = [];
+            const batchData = [];
+            
+            // 获取当前月份和前5个月，总共显示最近6个月的数据
+            const currentDate = new Date();
+            const currentMonth = currentDate.getMonth();
+            
+            for (let i = 5; i >= 0; i--) {
+                const monthIndex = (currentMonth - i + 12) % 12; // 确保月份索引为正数
+                labels.push(monthNames[monthIndex]);
+                singleData.push(monthlyData[monthIndex].single);
+                batchData.push(monthlyData[monthIndex].batch);
+            }
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '单次预测',
+                            data: singleData,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#0d6efd',
+                            pointBorderColor: '#fff',
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: '批量预测',
+                            data: batchData,
+                            borderColor: '#198754',
+                            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#198754',
+                            pointBorderColor: '#fff',
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '近6个月预测趋势',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 20
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            titleFont: {
+                                size: 14
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            padding: 10,
+                            cornerRadius: 4,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y + ' 次';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '预测次数',
+                                font: {
+                                    size: 13,
+                                    weight: 'bold'
+                                },
+                                padding: {top: 0, bottom: 10}
+                            },
+                            ticks: {
+                                precision: 0,
+                                stepSize: 1
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '月份',
+                                font: {
+                                    size: 13,
+                                    weight: 'bold'
+                                },
+                                padding: {top: 10, bottom: 0}
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

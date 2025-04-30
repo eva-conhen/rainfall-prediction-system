@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大数据智能降雨预测平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.2/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <style>
+        body {
+            padding-top: 56px;
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            position: fixed;
+            top: 56px;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            background-color: #f8f9fa;
+        }
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: .5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .nav-link {
+            font-weight: 500;
+            color: #333;
+        }
+        .nav-link.active {
+            color: #007bff;
+        }
+        .main-content {
+            padding: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .chart-container {
+            height: 400px;
+            margin-bottom: 20px;
+        }
+        .feature-importance-chart {
+            height: 400px;
+        }
+        .prediction-result {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .rain-icon {
+            font-size: 3rem;
+            margin-right: 10px;
+        }
+        .rain-yes {
+            color: #0d6efd;
+        }
+        .rain-no {
+            color: #ffc107;
+        }
+        .probability-bar {
+            height: 30px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-cloud-rain-fill me-2"></i>
+                大数据智能降雨预测平台
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <span class="nav-link" id="username"></span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="logout()">退出登录</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="refreshBtn">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#dashboard" data-bs-toggle="tab">
+                                <i class="bi bi-speedometer2 me-2"></i>
+                                仪表盘
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#data-upload" data-bs-toggle="tab">
+                                <i class="bi bi-cloud-upload me-2"></i>
+                                数据上传
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#data-analysis" data-bs-toggle="tab">
+                                <i class="bi bi-bar-chart me-2"></i>
+                                数据分析
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#model-training" data-bs-toggle="tab">
+                                <i class="bi bi-gear me-2"></i>
+                                模型训练
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#prediction" data-bs-toggle="tab">
+                                <i class="bi bi-cloud-rain me-2"></i>
+                                降雨预测
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#results" data-bs-toggle="tab">
+                                <i class="bi bi-file-earmark-text me-2"></i>
+                                预测结果
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <div class="container mt-4">
+                    <div class="row">
+                        <!-- 输入表单 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="card-title mb-0">输入气象参数</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="prediction-form">
+                                        <div class="mb-3">
+                                            <label for="day" class="form-label">日期（年中的第几天）</label>
+                                            <input type="number" class="form-control" id="day" required min="1" max="365">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="pressure" class="form-label">气压（hPa）</label>
+                                            <input type="number" class="form-control" id="pressure" required step="0.1">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="temparature" class="form-label">温度（℃）</label>
+                                            <input type="number" class="form-control" id="temparature" required step="0.1">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="humidity" class="form-label">湿度（%）</label>
+                                            <input type="number" class="form-control" id="humidity" required min="0" max="100">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="cloud" class="form-label">云量</label>
+                                            <input type="number" class="form-control" id="cloud" required min="0" max="10">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="sunshine" class="form-label">日照时间（小时）</label>
+                                            <input type="number" class="form-control" id="sunshine" required min="0" max="24" step="0.1">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="windspeed" class="form-label">风速（m/s）</label>
+                                            <input type="number" class="form-control" id="windspeed" required step="0.1">
+                                        </div>
+                                        <button type="submit" class="btn btn-primary w-100">预测</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 预测结果 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="card-title mb-0">预测结果</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="prediction-result" class="prediction-result">
+                                        等待预测...
+                                    </div>
+                                    <div class="text-center">
+                                        <canvas id="probability-gauge"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 历史记录 -->
+                            <div class="card mt-4">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="card-title mb-0">历史预测记录</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>时间</th>
+                                                    <th>预测结果</th>
+                                                    <th>概率</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="history-table">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/check_login');
+                const data = await response.json();
+                
+                if (!data.logged_in) {
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                document.getElementById('username').textContent = `欢迎，${data.username}`;
+            } catch (error) {
+                console.error('检查登录状态失败：', error);
+                window.location.href = '/login';
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                const response = await fetch('/logout', { method: 'POST' });
+                if (response.ok) {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('退出登录失败：', error);
+            }
+        }
+
+        // 页面加载时检查登录状态
+        checkLoginStatus();
+
+
+        // 初始化仪表盘
+        const ctx = document.getElementById('probability-gauge').getContext('2d');
+        const gauge = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [0, 100],
+                    backgroundColor: ['#28a745', '#e9ecef']
+                }]
+            },
+            options: {
+                circumference: 180,
+                rotation: -90,
+                cutout: '80%',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // 处理表单提交
+        document.getElementById('prediction-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                day: parseInt(document.getElementById('day').value),
+                pressure: parseFloat(document.getElementById('pressure').value),
+                temparature: parseFloat(document.getElementById('temparature').value),
+                humidity: parseFloat(document.getElementById('humidity').value),
+                cloud: parseFloat(document.getElementById('cloud').value),
+                sunshine: parseFloat(document.getElementById('sunshine').value),
+                windspeed: parseFloat(document.getElementById('windspeed').value)
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                // 更新预测结果
+                const resultDiv = document.getElementById('prediction-result');
+                resultDiv.textContent = result.prediction ? '预计会下雨' : '预计不会下雨';
+                resultDiv.style.color = result.prediction ? '#dc3545' : '#28a745';
+
+                // 更新仪表盘
+                gauge.data.datasets[0].data = [result.probability * 100, 100 - result.probability * 100];
+                gauge.update();
+
+                // 添加到历史记录
+                const historyTable = document.getElementById('history-table');
+                const row = historyTable.insertRow(0);
+                row.innerHTML = `
+                    <td>${new Date().toLocaleString()}</td>
+                    <td>${result.prediction ? '会下雨' : '不会下雨'}</td>
+                    <td>${(result.probability * 100).toFixed(2)}%</td>
+                `;
+
+            } catch (error) {
+                alert('预测失败：' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
