@@ -585,6 +585,53 @@ def single_predict():
     
     return render_template('single_predict.html')
 
+@app.route('/visualization')
+def visualization():
+    """数据可视化页面"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # 获取用户信息
+    user_id = session['user_id']
+    username = session['username']
+    
+    # 获取历史预测数据用于可视化
+    predictions = Prediction.query.filter_by(user_id=user_id).order_by(Prediction.timestamp.desc()).all()
+    
+    # 准备可视化数据
+    prediction_dates = [p.timestamp.strftime('%Y-%m-%d') for p in predictions]
+    prediction_results = []
+    
+    # 正确处理预测结果，确保能识别"不会下雨"的情况
+    for p in predictions:
+        if '会下雨' in p.result and '不会下雨' not in p.result:
+            prediction_results.append(1)  # 会下雨
+        elif '不会下雨' in p.result:
+            prediction_results.append(0)  # 不会下雨
+        # 跳过摘要信息和无法识别的结果
+    
+    # 按日期统计预测结果
+    from collections import defaultdict
+    date_counts = defaultdict(lambda: {'rain': 0, 'no_rain': 0})
+    for p in predictions:
+        if '会下雨' in p.result:
+            date_counts[p.timestamp.strftime('%Y-%m-%d')]['rain'] += 1
+        elif '不会下雨' in p.result:
+            date_counts[p.timestamp.strftime('%Y-%m-%d')]['no_rain'] += 1
+    
+    # 转换为图表数据格式
+    chart_dates = list(date_counts.keys())
+    rain_counts = [date_counts[date]['rain'] for date in chart_dates]
+    no_rain_counts = [date_counts[date]['no_rain'] for date in chart_dates]
+    
+    return render_template('visualization.html', 
+                           username=username,
+                           prediction_dates=json.dumps(prediction_dates),
+                           prediction_results=json.dumps(prediction_results),
+                           chart_dates=json.dumps(chart_dates),
+                           rain_counts=json.dumps(rain_counts),
+                           no_rain_counts=json.dumps(no_rain_counts))
+
 @app.route('/batch_predict', methods=['GET', 'POST'])
 def batch_predict():
     if 'user_id' not in session:
@@ -647,15 +694,25 @@ def batch_predict():
                     return render_template('batch_predict.html', error=error_msg)
                 
                 # 保存预测结果
-                result_summary = f"批量预测完成，共 {len(results)} 条记录"
-                prediction = Prediction(
-                    user_id=session['user_id'],
-                    prediction_type='batch',
-                    result=result_summary
-                )
-                
                 try:
-                    db.session.add(prediction)
+                    # 保存每条具体的预测结果
+                    for result in results:
+                        prediction = Prediction(
+                            user_id=session['user_id'],
+                            prediction_type='batch',
+                            result=result
+                        )
+                        db.session.add(prediction)
+                    
+                    # 保存一条摘要信息
+                    result_summary = f"批量预测完成，共 {len(results)} 条记录"
+                    summary_prediction = Prediction(
+                        user_id=session['user_id'],
+                        prediction_type='batch_summary',
+                        result=result_summary
+                    )
+                    db.session.add(summary_prediction)
+                    
                     db.session.commit()
                     print("预测结果已保存到数据库")
                 except Exception as e:
@@ -688,4 +745,5 @@ if __name__ == '__main__':
     updater_thread.start()
     
     # 启动应用程序
-    app.run(debug=True, port=5001)
+    # app.run(debug=True, port=5001)
+    app.run(host='0.0.0.0', port=5001, debug=False)
