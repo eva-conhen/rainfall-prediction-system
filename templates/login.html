@@ -271,12 +271,12 @@
                         <small class="text-muted d-none" id="registerUsernameError">用户名只能包含字母、数字和下划线，长度3-20个字符</small>
                     </div>
                     <div class="form-input">
-                        <input type="password" id="registerPassword" required minlength="6">
+                        <input type="password" id="registerPassword" required minlength="8">
                         <label for="registerPassword">密码</label>
-                        <small class="text-muted d-none" id="registerPasswordError">密码长度至少6个字符</small>
+                        <small class="text-muted d-none" id="registerPasswordError">密码长度至少8个字符</small>
                     </div>
                     <div class="form-input">
-                        <input type="password" id="registerConfirmPassword" required minlength="6">
+                        <input type="password" id="registerConfirmPassword" required minlength="8">
                         <label for="registerConfirmPassword">确认密码</label>
                         <small class="text-muted d-none" id="registerConfirmPasswordError">两次输入的密码不一致</small>
                     </div>
@@ -433,6 +433,20 @@
             
             if (!username || !password || !confirmPassword) {
                 errorElem.textContent = '请填写完整的注册信息';
+                errorElem.classList.remove('d-none');
+                return;
+            }
+            
+            // 验证用户名格式
+            if (username.length < 4 || username.length > 20) {
+                errorElem.textContent = '用户名长度必须在4-20个字符之间';
+                errorElem.classList.remove('d-none');
+                return;
+            }
+            
+            // 验证密码长度
+            if (password.length < 8) {
+                errorElem.textContent = '密码长度至少需要8个字符';
                 errorElem.classList.remove('d-none');
                 return;
             }

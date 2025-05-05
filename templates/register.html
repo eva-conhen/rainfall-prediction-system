@@ -52,11 +52,12 @@
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">密码</label>
-                        <input type="password" class="form-control" id="password" required>
+                        <input type="password" class="form-control" id="password" required minlength="8">
+                        <div class="form-text">密码长度至少需要8个字符</div>
                     </div>
                     <div class="mb-3">
                         <label for="confirmPassword" class="form-label">确认密码</label>
-                        <input type="password" class="form-control" id="confirmPassword" required>
+                        <input type="password" class="form-control" id="confirmPassword" required minlength="8">
                     </div>
                     <button type="submit" class="btn btn-primary">注册</button>
                 </form>
@@ -75,6 +76,30 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // 验证用户名格式
+            if (username.length < 4 || username.length > 20) {
+                const alertContainer = document.getElementById('alert-container');
+                alertContainer.innerHTML = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        用户名长度必须在4-20个字符之间
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 验证密码长度
+            if (password.length < 8) {
+                const alertContainer = document.getElementById('alert-container');
+                alertContainer.innerHTML = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        密码长度至少需要8个字符
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                return;
+            }
             
             if (password !== confirmPassword) {
                 const alertContainer = document.getElementById('alert-container');

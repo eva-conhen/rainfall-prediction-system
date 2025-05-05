@@ -1,16 +1,31 @@
 # 大数据智能降雨预测平台
 
 ## 项目概述
-基于机器学习和深度学习的降雨预测系统，集成数据收集、处理、模型训练和Web应用功能。支持单次预测和批量预测，提供可视化分析界面，并具备用户管理和权限控制功能。本系统采用现代化UI设计，提供直观的操作体验。
+基于机器学习和深度学习的降雨预测系统，集成数据收集、处理、模型训练和Web应用功能。支持单次预测、批量预测和7天降雨预测，提供可视化分析界面，并具备完善的用户注册登录系统和后台管理功能。本系统采用现代化UI设计，提供直观的操作体验和安全可靠的用户验证机制。
+
+## 技术栈
+- **前端框架**: Flask + Bootstrap
+- **后端框架**: Python Flask
+- **机器学习和深度学习**:  XGBoost, SHAP、CNN、BiLSTM、Attention机制
+- **数据处理**: Pandas, NumPy
+- **数据库**: SQLite
+- **可视化**: Matplotlib, Plotly
+- **api调用**: Geopy与Open-Meteo API
+- **部署**: 阿里云ECS
+## 项目地址
+- **GitHub仓库**: https://github.com/eva-conhen/rainfall-prediction-system
+- **系统公网地址**: http://8.137.144.251:5001/login
 
 ## 核心功能
 | 功能模块 | 对应文件 | 描述 |
 |---------|---------|------|
 | 主系统逻辑 | rainfall_system.py | 包含数据收集、处理、模型训练和预测的核心业务流程 |
-| Web应用 | app.py | Flask实现的预测平台，提供用户登录、数据上传和结果展示功能 |
+| Web应用 | app.py | Flask实现的预测平台，提供用户注册登录、数据上传和结果展示功能 |
 | 数据处理 | data_processor.py | 数据清洗、特征工程和可视化处理模块 |
 | 模型训练 | model_trainer.py | 包含随机森林、XGBoost和深度学习模型的训练与优化 |
 | 实时数据 | real_time_data.py | 模拟实时数据收集和存储功能 |
+| 7天预测 | api_predict.html | 提供输入行政区划地址来api调用获取未来7天气象数据并且进行降雨预测功能 |
+| 用户系统 | register.html/login.html | 完善的用户注册登录系统 |
 | 管理后台 | admin_backend/admin.py | 用户管理和预测记录查看的后台系统 |
 | 增强应用 | app_enhanced.py | 增强版应用入口，提供更多高级功能 |
 | 集成应用 | app_integration.py | 集成版应用，整合所有功能模块 |
@@ -57,29 +72,14 @@
 ## 安装与使用
 ```bash
 # 克隆仓库
-git clone https://github.com/eva-conhen/rainfall.git
-cd rainfall
-
+git clone https://github.com/eva-conhen/rainfall-prediction-system
+# 进入项目目录
+cd rainfall-prediction-system
 # 安装依赖
 pip install -r requirements.txt
-
-# 启动基础Web服务
-flask run --host=0.0.0.0 --port=5000
-
-# 启动增强版应用
-python app_enhanced.py
-
-# 启动集成版应用
-python app_integration.py
-
-# 训练模型（示例）
-python rainfall_system.py --data data/weather_data_20250424.csv
-
-# 启动实时数据收集
-python real_time_data.py
-
-# 启动数据看板
-python dashboard.py
+# 运行Web应用
+python app.py
+# 打开浏览器访问 # 打开浏览器访问 URL_ADDRESS:5000
 ```
 
 ## 功能详解
@@ -102,6 +102,9 @@ python dashboard.py
 - **数据分析**：数据统计和可视化分析
 - **结果导出**：支持多种格式导出预测结果
 - **实时监控**：系统运行状态和资源使用监控
+
+## 部署情况
+- 服务器环境：阿里云ECS
 
 ## 贡献指南
 欢迎贡献代码或提出问题！请遵循以下步骤：

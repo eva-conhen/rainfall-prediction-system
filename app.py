@@ -128,6 +128,22 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def preprocess_data(data):
+    # 创建数据副本，避免修改原始数据
+    data = data.copy()
+    
+    # 检查并处理timestamp字段
+    if 'timestamp' in data.columns:
+        try:
+            # 将timestamp转换为datetime格式，然后提取需要的特征
+            data['timestamp'] = pd.to_datetime(data['timestamp'])
+            # 如果需要，可以添加额外的时间特征
+            # data['day_of_year'] = data['timestamp'].dt.dayofyear
+            # data['month'] = data['timestamp'].dt.month
+            # 删除timestamp列，因为模型训练时没有这个特征
+            data = data.drop(columns=['timestamp'])
+        except Exception as e:
+            raise ValueError(f"timestamp格式转换错误: {str(e)}")
+    
     # 检查日期格式并转换
     if 'date' in data.columns:
         try:
@@ -486,6 +502,82 @@ def logout():
     session.pop('user_id', None)
     session.pop('username', None)
     return redirect(url_for('login'))
+
+@app.route('/api_predict', methods=['GET', 'POST'])
+def api_predict():
+    """API调用预测页面和功能"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    username = session.get('username')
+    
+    if request.method == 'POST':
+        try:
+            # 获取请求数据
+            data = request.get_json()
+            location = data.get('location')
+            
+            if not location:
+                return jsonify({'error': '请输入有效的地址或城市名称'})
+            
+            # 使用WeatherAPIClient获取天气数据
+            from api_client import WeatherAPIClient
+            client = WeatherAPIClient()
+            weather_df = client.get_formatted_weather_data(location)
+            
+            if weather_df is None:
+                return jsonify({'error': f'无法获取{location}的天气数据，请检查地址是否正确'})
+            
+            # 准备预测数据
+            predict_data = weather_df.copy()
+            
+            # 进行预测
+            try:
+                results = make_prediction(predict_data)
+                prediction_result = results[0]  # 获取第一天的预测结果
+                
+                # 保存预测记录
+                prediction = Prediction(
+                    user_id=session['user_id'],
+                    prediction_type='api',
+                    result=prediction_result
+                )
+                db.session.add(prediction)
+                db.session.commit()
+                
+                # 将DataFrame转换为JSON格式
+                weather_data = []
+                for _, row in weather_df.iterrows():
+                    weather_data.append({
+                        'timestamp': row['timestamp'].strftime('%Y-%m-%d'),
+                        'day': int(row['day']),
+                        'pressure': float(row['pressure']),
+                        'maxtemp': float(row['maxtemp']),
+                        'temparature': float(row['temparature']),
+                        'mintemp': float(row['mintemp']),
+                        'dewpoint': float(row['dewpoint']),
+                        'humidity': float(row['humidity']),
+                        'cloud': float(row['cloud']),
+                        'sunshine': float(row['sunshine']),
+                        'winddirection': float(row['winddirection']),
+                        'windspeed': float(row['windspeed'])
+                    })
+                
+                return jsonify({
+                    'predictions': results,  # 返回所有天的预测结果数组
+                    'weather_data': weather_data
+                })
+                
+            except Exception as e:
+                print(f"预测过程中出错: {str(e)}")
+                return jsonify({'error': f'预测过程中出错: {str(e)}'})
+                
+        except Exception as e:
+            print(f"API调用预测过程中出错: {str(e)}")
+            return jsonify({'error': f'处理请求时出错: {str(e)}'})
+    
+    # GET请求返回页面
+    return render_template('api_predict.html', username=username)
 
 @app.route('/admin/login', methods=['POST'])
 def admin_login():
